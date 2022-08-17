@@ -49,7 +49,11 @@ class ShortUrlHelper
     {
         $index = substr($code, 0, 1);
         $code = substr($code, 1);
-        $id = Base62::decode($code, self::$baseList[strpos(self::$base, $index)]);
+        $pos = strpos(self::$base, $index);
+        if (false === $pos || !isset(self::$baseList[$pos])) {
+            return null;
+        }
+        $id = Base62::decode($code, self::$baseList[$pos]);
         if ($id) {
             $tableName = config('table-name');
             $stmt = pdo()->prepare("SELECT `id`,`url` FROM `$tableName` WHERE `id`=:id LIMIT 1");
@@ -70,6 +74,63 @@ class ShortUrlHelper
         header('Location: ' . $model['url'], true, 301);
     }
 
+    /**
+     * 检测非法ip
+     * @return bool 检测异常返回false
+     */
+    public static function banipCheck()
+    {
+        if (!config('enable-banip')) return true;
+        $tableName = config('table-name-banip');
+        $stmt = pdo()->prepare("SELECT time,fail_count FROM `$tableName` WHERE ip=:ip LIMIT 1");
+        $ip = getRemoteAddr();
+        $stmt->execute([':ip' => $ip]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return true;
+        }
+        if ($row['fail_count'] < config('banip-fail-count')) {
+            return true;
+        }
+        if (strtotime($row['time']) < time() - config('banip-time')) {
+            self::banipDelete();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 记录非法ip
+     */
+    public static function banipSave()
+    {
+        if (!config('enable-banip')) return true;
+        $tableName = config('table-name-banip');
+        $stmt = pdo()->prepare("SELECT id,time,fail_count FROM `$tableName` WHERE ip=:ip LIMIT 1");
+        $ip = getRemoteAddr();
+        $stmt->execute([':ip' => $ip]);
+        $row = $stmt->fetch();
+        if ($row) {
+            $stmt = pdo()->prepare("UPDATE `$tableName` SET `fail_count`=`fail_count`+1,`time`=NOW() WHERE id=:id LIMIT 1");
+            $stmt->execute([':id' => $row['id']]);
+            return;
+        }
+        $stmt = pdo()->prepare("INSERT INTO `$tableName` (ip,fail_count,time) VALUES(:ip,1,NOW())");
+        $stmt->execute([':ip' => $ip]);
+    }
+
+    /**
+     * 解禁非法ip
+     */
+    public static function banipDelete()
+    {
+        if (!config('enable-banip')) return true;
+        $tableName = config('table-name-banip');
+        $stmt = pdo()->prepare("UPDATE `$tableName` SET `fail_count`=0,`time`=NOW() WHERE ip=:ip LIMIT 1");
+        $ip = getRemoteAddr();
+        $stmt->execute([':ip' => $ip]);
+    }
+    
     /**
      * 生成62组随机序列
      * @return array 62组随机序列

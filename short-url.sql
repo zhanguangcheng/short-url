@@ -1,3 +1,12 @@
+CREATE TABLE `short_banip` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `ip` int(10) unsigned NOT NULL,
+  `fail_count` tinyint(4) NOT NULL DEFAULT '0',
+  `time` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ip` (`ip`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 CREATE TABLE `short_url` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `crc32` int(10) unsigned NOT NULL,
