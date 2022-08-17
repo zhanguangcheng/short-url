@@ -7,6 +7,7 @@ if (config('enable-auth') && !authValidate()) {
     http_response_code(401);
     header('WWW-Authenticate:Basic realm="短网址"');
     echo 'failed';
+    exit(1);
 }
 
 $shortUrl = '';
